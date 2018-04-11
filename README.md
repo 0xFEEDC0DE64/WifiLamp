@@ -1,5 +1,9 @@
 # WifiLamp
-I have a lamp in my room where I intercepted the powerline using a relais and ESP2866 to control it from my phone/amazon dash button
+I have a lamp in my room where I intercepted the powerline using a relais and ESP2866 to control it from my phone/amazon dash button.
+
+The micro controller connects to my home WiFi and starts a webserver to control it. APIs exist to simplify control from other software components like [android app](https://github.com/Waboodoo/HTTP-Shortcuts).
+
+![Screenshot](/screenshot.png)
 
 ## Parts
 1. [Wemos D1 Mini](https://wiki.wemos.cc/products:d1:d1_mini)
