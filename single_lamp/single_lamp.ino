@@ -4,7 +4,7 @@
 
 const char* ssid = "McDonalds Free WiFi 2.4GHz";
 const char* password = "Passwort_123";
-const char* host = "192.168.0.243";
+const char* host = "192.168.0.2";
 
 const char* success = "success";
 
