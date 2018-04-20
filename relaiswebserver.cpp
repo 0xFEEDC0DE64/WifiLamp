@@ -47,8 +47,7 @@ void RelaisWebserver::handleRequest(HttpClientConnection *connection, const Http
 
         for(auto _client : m_relaisServer->clients())
         {
-            if(!_client->name().isEmpty() &&
-               _client->name() == parts.at(2))
+            if(clientId(_client) == parts.at(2))
             {
                 client = _client;
                 break;
@@ -79,6 +78,12 @@ void RelaisWebserver::handleRequest(HttpClientConnection *connection, const Http
             redirectRoot(connection, request);
             return;
         }
+        else if(parts.at(3) == "delete")
+        {
+            client->deleteLater();
+            redirectRoot(connection, request);
+            return;
+        }
         else
         {
             handle404(connection, request);
@@ -102,24 +107,25 @@ void RelaisWebserver::handleRoot(HttpClientConnection *connection, const HttpReq
     output.append("<th>Name</th>");
     output.append("<th>Status</th>");
     output.append("<th>Actions</th>");
+    output.append("<th>Administration</th>");
     output.append("</tr>");
     output.append("</thead>");
     output.append("<tbody>");
     for(auto client : m_relaisServer->clients())
     {
         output.append("<tr>");
-        output.append("<td>" % client->peerAddress().toString() % ':' % QString::number(client->peerPort()) % "</td>");
-        output.append("<td>" % client->name() % "</td>");
-        output.append("<td>" % client->status() % "</td>");
-        if(!client->name().isEmpty())
-        {
-            output.append("<td><a href=\"/devices/" % client->name().toHtmlEscaped() % "/toggle\">" % tr("toggle") % "</a> ");
-            if(client->status() != QStringLiteral("on"))
-                output.append("<a href=\"/devices/" % client->name().toHtmlEscaped() % "/on\">" % tr("on") % "</a> ");
-            if(client->status() != QStringLiteral("off"))
-                output.append("<a href=\"/devices/" % client->name().toHtmlEscaped() % "/off\">" % tr("off") % "</a> ");
-            output.append("</td>");
-        }
+        output.append("<td>" % clientId(client).toHtmlEscaped() % "</td>");
+        output.append("<td>" % client->name().toHtmlEscaped() % "</td>");
+        output.append("<td>" % client->status().toHtmlEscaped() % "</td>");
+        output.append("<td><a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/toggle\">" % tr("toggle") % "</a> ");
+
+        if(client->status() != QStringLiteral("on"))
+            output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/on\">" % tr("on") % "</a> ");
+
+        if(client->status() != QStringLiteral("off"))
+            output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/off\">" % tr("off") % "</a> ");
+        output.append("</td>");
+        output.append("<td><a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/delete\">" % tr("Delete") % "</a></td>");
         output.append("</tr>");
     }
     output.append("</tbody>");
@@ -158,4 +164,9 @@ void RelaisWebserver::handle404(HttpClientConnection *connection, const HttpRequ
     response.headers.insert(QStringLiteral("Content-Type"), QStringLiteral("text/html"));
 
     connection->sendResponse(response);
+}
+
+QString RelaisWebserver::clientId(RelaisClient *client)
+{
+    return client->peerAddress().toString() % ':' % QString::number(client->peerPort());
 }

@@ -4,8 +4,7 @@
 
 const char* ssid = "McDonalds Free WiFi 2.4GHz";
 const char* password = "Passwort_123";
-
-const int relaisPin = D1;
+const char* host = "192.168.0.243";
 
 const char* success = "success";
 
@@ -72,16 +71,96 @@ const char* updateContent = "<!doctype html>"
                                 "</body>"
                             "</html>";
 
+class ControlClient {
+public:
+  explicit ControlClient(const char *name, const int pin) :
+    m_name(name),
+    m_pin(pin)
+  {
+  }
+
+  void begin() {
+    Serial.println(m_pin);
+    Serial.println("begin()");
+    pinMode(m_pin, OUTPUT);
+    digitalWrite(m_pin, HIGH);
+  }
+
+  void handleClient() {
+    if(!m_client.connected()) {
+      Serial.println("Connecting to server...");
+      
+      if (m_client.connect(host, 1234)) {
+        Serial.println("Connected to server!");
+
+        m_client.println(m_name);
+        sendStatus();
+      } else {
+        Serial.println("Could not connect to server!");
+      }
+    }
+
+    if(m_client.connected()) {
+      while(m_client.available()) {
+        char c(m_client.read());
+        Serial.println(c);
+        switch(c) {
+          case '1': on(); break;
+          case '0': off(); break;
+          case 't': toggle(); break;
+          case 's': sendStatus(); break;
+          default: Serial.print("Unknown command: "); Serial.println(c);
+        }
+      }
+    }
+  }
+
+  void on() {
+    Serial.println("on()");
+    digitalWrite(m_pin, HIGH);
+    sendStatus();
+  }
+
+  void off() {
+    Serial.println("off()");
+    digitalWrite(m_pin, LOW);
+    sendStatus();
+  }
+
+  void toggle() {
+    Serial.println("toggle()");
+    if(status()) {
+      off();
+    } else {
+      on();
+    }
+  }
+
+  bool status() {
+    return digitalRead(m_pin) == HIGH;
+  }
+
+  void sendStatus() {
+    Serial.println("sendStatus()");
+    m_client.println(status() ? "on" : "off");
+  }
+
+private:
+  WiFiClient m_client;
+  const char *m_name;
+  const int m_pin;
+};
+
 ESP8266WebServer server(80);
+ControlClient relaisClient("daniel_decke", D1);
 
 void setup() {
   Serial.begin(115200);
   Serial.println();
-  
-  pinMode(relaisPin, OUTPUT);
-  digitalWrite(relaisPin, HIGH);
 
   WiFi.begin(ssid, password);
+  
+  relaisClient.begin();
 
   server.on("/", HTTP_GET, []() {
     server.sendHeader("Connection", "close");
@@ -94,21 +173,21 @@ void setup() {
   });
   
   server.on("/on", HTTP_GET, []() {
-    digitalWrite(relaisPin, HIGH);
+    relaisClient.on();
     
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", success);
   });
   
   server.on("/off", HTTP_GET, []() {
-    digitalWrite(relaisPin, LOW);
+    relaisClient.off();
     
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", success);
   });
   
   server.on("/toggle", HTTP_GET, []() {
-    digitalWrite(relaisPin, digitalRead(relaisPin) ? LOW : HIGH);
+    relaisClient.toggle();
     
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", success);
@@ -116,7 +195,7 @@ void setup() {
   
   server.on("/status", HTTP_GET, []() {
     server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", digitalRead(relaisPin) ? "on" : "off");
+    server.send(200, "text/plain", relaisClient.status() ? "on" : "off");
   });
   
   server.on("/update", HTTP_POST, []() {
@@ -150,18 +229,16 @@ void setup() {
   });
 
   server.begin();
-
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    for(int i = 0; i < 2; i++) {
-      digitalWrite(relaisPin, LOW);
-      delay(500);
-      digitalWrite(relaisPin, HIGH);
-      delay(500);
-    }
-  }
 }
  
 void loop() {
-  server.handleClient();
+  if(WiFi.status() == WL_CONNECTED) {
+    relaisClient.handleClient();
+    server.handleClient();
+  } else {
+    Serial.println("No wifi");
+    delay(500);
+  }
+  
   delay(1);
 }

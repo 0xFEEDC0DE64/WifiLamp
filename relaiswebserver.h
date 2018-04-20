@@ -4,9 +4,10 @@
 
 #include "httpserver.h"
 
-class RelaisServer;
 class HttpClientConnection;
 class HttpRequest;
+class RelaisClient;
+class RelaisServer;
 
 class RelaisWebserver : public HttpServer
 {
@@ -22,6 +23,7 @@ private:
     void handleRoot(HttpClientConnection *connection, const HttpRequest &request);
     void redirectRoot(HttpClientConnection *connection, const HttpRequest &request);
     void handle404(HttpClientConnection *connection, const HttpRequest &request);
+    static QString clientId(RelaisClient *client);
 
     RelaisServer *m_relaisServer;
 };
