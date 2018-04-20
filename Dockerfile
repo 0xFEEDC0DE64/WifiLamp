@@ -37,4 +37,7 @@ RUN apt update \
 
 COPY --from=0 /tmp/build_WifiLamp/WifiLamp /root/
 
+EXPOSE 1234/tcp
+EXPOSE 8080/tcp
+
 CMD /root/WifiLamp
