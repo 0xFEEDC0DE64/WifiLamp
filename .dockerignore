@@ -1,0 +1,11 @@
+/.gitignore
+/.gitmodules
+/cdn
+/photos
+/Dockerfile
+/LICENSE
+/README.md
+/WifiLamp.ino
+/amzn-dash-lamp.js
+/photo.jpg
+/screenshot.png
