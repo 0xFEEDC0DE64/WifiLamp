@@ -28,7 +28,8 @@ const char* indexContent = "<!doctype html>"
                                    "<div class=\"container\">"
                                        "<h1>Relais Control</h1>"
                                        
-                                       "<switch onUrl=\"on\" offUrl=\"off\" statusUrl=\"status\" />"
+                                       "<switch onUrl=\"on0\" offUrl=\"off0\" statusUrl=\"status0\" />"
+                                       "<switch onUrl=\"on1\" offUrl=\"off1\" statusUrl=\"status1\" />"
                                    "</div>"
                                    
                                    "<script src=\"https://code.jquery.com/jquery-3.3.1.min.js\" integrity=\"sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT\" crossorigin=\"anonymous\"></script>"
@@ -77,6 +78,7 @@ public:
   }
 
   void begin() {
+    Serial.println(m_pin);
     Serial.println("begin()");
     pinMode(m_pin, OUTPUT);
     digitalWrite(m_pin, HIGH);
@@ -148,7 +150,8 @@ private:
 };
 
 ESP8266WebServer server(80);
-ControlClient relaisClient("funksteckdose1", D1);
+ControlClient relais0Client("wohnzimmer_decke", D1);
+ControlClient relais1Client("vorzimmer_decke", D2);
 
 void setup() {
   Serial.begin(115200);
@@ -156,7 +159,8 @@ void setup() {
 
   WiFi.begin(ssid, password);
   
-  relaisClient.begin();
+  relais0Client.begin();
+  relais1Client.begin();
 
   server.on("/", HTTP_GET, []() {
     server.sendHeader("Connection", "close");
@@ -168,30 +172,56 @@ void setup() {
     server.send(200, "text/html", updateContent);
   });
   
-  server.on("/on", HTTP_GET, []() {
-    relaisClient.on();
+  server.on("/on0", HTTP_GET, []() {
+    relais0Client.on();
     
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", success);
   });
   
-  server.on("/off", HTTP_GET, []() {
-    relaisClient.off();
+  server.on("/off0", HTTP_GET, []() {
+    relais0Client.off();
     
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", success);
   });
   
-  server.on("/toggle", HTTP_GET, []() {
-    relaisClient.toggle();
+  server.on("/on1", HTTP_GET, []() {
+    relais1Client.on();
     
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", success);
   });
   
-  server.on("/status", HTTP_GET, []() {
+  server.on("/off1", HTTP_GET, []() {
+    relais1Client.off();
+    
     server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", relaisClient.status() ? "on" : "off");
+    server.send(200, "text/plain", success);
+  });
+  
+  server.on("/toggle0", HTTP_GET, []() {
+    relais0Client.toggle();
+    
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", success);
+  });
+  
+  server.on("/toggle1", HTTP_GET, []() {
+    relais1Client.toggle();
+    
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", success);
+  });
+  
+  server.on("/status0", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", relais0Client.status() ? "on" : "off");
+  });
+  
+  server.on("/status1", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", relais1Client.status() ? "on" : "off");
   });
   
   server.on("/update", HTTP_POST, []() {
@@ -229,7 +259,8 @@ void setup() {
  
 void loop() {
   if(WiFi.status() == WL_CONNECTED) {
-    relaisClient.handleClient();
+    relais0Client.handleClient();
+    relais1Client.handleClient();
     server.handleClient();
   } else {
     Serial.println("No wifi");
