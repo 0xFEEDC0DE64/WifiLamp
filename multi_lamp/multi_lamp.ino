@@ -107,6 +107,7 @@ public:
           case '0': off(); break;
           case 't': toggle(); break;
           case 's': sendStatus(); break;
+          case 'r': m_client.println("rebooting"); ESP.restart(); break;
           default: Serial.print("Unknown command: "); Serial.println(c);
         }
       }
@@ -150,8 +151,9 @@ private:
 };
 
 ESP8266WebServer server(80);
-ControlClient relais0Client("wohnzimmer_decke", D1);
-ControlClient relais1Client("vorzimmer_decke", D2);
+ControlClient relais0Client("vorzimmer_decke", D1);
+ControlClient relais1Client("wohnzimmer_decke", D2);
+bool lastState0, lastState1;
 
 void setup() {
   Serial.begin(115200);
@@ -161,6 +163,12 @@ void setup() {
   
   relais0Client.begin();
   relais1Client.begin();
+  
+  pinMode(D5, INPUT_PULLUP);
+  pinMode(D6, INPUT_PULLUP);
+
+  lastState0 = digitalRead(D5) == HIGH;
+  lastState1 = digitalRead(D6) == HIGH;
 
   server.on("/", HTTP_GET, []() {
     server.sendHeader("Connection", "close");
@@ -265,6 +273,16 @@ void loop() {
   } else {
     Serial.println("No wifi");
     delay(500);
+  }
+
+  if(digitalRead(D5) != (lastState0 ? HIGH : LOW)) {
+    lastState0 = !lastState0;
+    relais0Client.toggle();
+  }
+
+  if(digitalRead(D6) != (lastState1 ? HIGH : LOW)) {
+    lastState1 = !lastState1;
+    relais1Client.toggle();
   }
   
   delay(1);

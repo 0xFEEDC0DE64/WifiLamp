@@ -105,6 +105,7 @@ public:
           case '0': off(); break;
           case 't': toggle(); break;
           case 's': sendStatus(); break;
+          case 'r': m_client.println("rebooting"); ESP.restart(); break;
           default: Serial.print("Unknown command: "); Serial.println(c);
         }
       }
