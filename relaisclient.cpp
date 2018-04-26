@@ -68,6 +68,12 @@ void RelaisClient::toggle()
     m_status = QString();
 }
 
+void RelaisClient::reboot()
+{
+    m_socket->write(QByteArrayLiteral("r"));
+    m_status = QString();
+}
+
 void RelaisClient::requestStatus()
 {
     m_socket->write(QByteArrayLiteral("s"));

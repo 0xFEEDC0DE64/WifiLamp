@@ -27,6 +27,7 @@ public Q_SLOTS:
     void on();
     void off();
     void toggle();
+    void reboot();
     void requestStatus();
 
 private Q_SLOTS:

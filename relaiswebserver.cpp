@@ -22,11 +22,10 @@ void RelaisWebserver::handleRequest(HttpClientConnection *connection, const Http
         HttpResponse response;
         response.protocol = request.protocol;
         response.statusCode = HttpResponse::StatusCode::BadRequest;
-        response.body = "Path does not start with /";
         response.headers.insert(QStringLiteral("Server"), QStringLiteral("Hatschi Server 1.0"));
         response.headers.insert(QStringLiteral("Content-Type"), QStringLiteral("text/html"));
 
-        connection->sendResponse(response);
+        connection->sendResponse(response, tr("Path does not start with /"));
         return;
     }
 
@@ -84,6 +83,12 @@ void RelaisWebserver::handleRequest(HttpClientConnection *connection, const Http
             redirectRoot(connection, request);
             return;
         }
+        else if(parts.at(3) == "reboot")
+        {
+            client->reboot();
+            redirectRoot(connection, request);
+            return;
+        }
         else
         {
             handle404(connection, request);
@@ -124,6 +129,8 @@ void RelaisWebserver::handleRoot(HttpClientConnection *connection, const HttpReq
 
         if(client->status() != QStringLiteral("off"))
             output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/off\">" % tr("off") % "</a> ");
+
+        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/reboot\">" % tr("reboot") % "</a> ");
         output.append("</td>");
         output.append("<td><a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/delete\">" % tr("Delete") % "</a></td>");
         output.append("</tr>");
@@ -134,11 +141,10 @@ void RelaisWebserver::handleRoot(HttpClientConnection *connection, const HttpReq
     HttpResponse response;
     response.protocol = request.protocol;
     response.statusCode = HttpResponse::StatusCode::OK;
-    response.body = output.toUtf8();
     response.headers.insert(QStringLiteral("Server"), QStringLiteral("Hatschi Server 1.0"));
     response.headers.insert(QStringLiteral("Content-Type"), QStringLiteral("text/html"));
 
-    connection->sendResponse(response);
+    connection->sendResponse(response, output);
 }
 
 void RelaisWebserver::redirectRoot(HttpClientConnection *connection, const HttpRequest &request)
@@ -146,12 +152,12 @@ void RelaisWebserver::redirectRoot(HttpClientConnection *connection, const HttpR
     HttpResponse response;
     response.protocol = request.protocol;
     response.statusCode = HttpResponse::StatusCode::Found;
-    response.body = QByteArrayLiteral("<a href=\"/\">Follow this link</a>");
+
     response.headers.insert(QStringLiteral("Server"), QStringLiteral("Hatschi Server 1.0"));
     response.headers.insert(QStringLiteral("Content-Type"), QStringLiteral("text/html"));
     response.headers.insert(QStringLiteral("Location"), QStringLiteral("/"));
 
-    connection->sendResponse(response);
+    connection->sendResponse(response, "<a href=\"/\">" % tr("Follow this link") % "</a>");
 }
 
 void RelaisWebserver::handle404(HttpClientConnection *connection, const HttpRequest &request)
@@ -159,11 +165,10 @@ void RelaisWebserver::handle404(HttpClientConnection *connection, const HttpRequ
     HttpResponse response;
     response.protocol = request.protocol;
     response.statusCode = HttpResponse::StatusCode::NotFound;
-    response.body = "Not Found";
     response.headers.insert(QStringLiteral("Server"), QStringLiteral("Hatschi Server 1.0"));
     response.headers.insert(QStringLiteral("Content-Type"), QStringLiteral("text/html"));
 
-    connection->sendResponse(response);
+    connection->sendResponse(response, tr("Not Found"));
 }
 
 QString RelaisWebserver::clientId(RelaisClient *client)
