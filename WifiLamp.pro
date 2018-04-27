@@ -14,4 +14,7 @@ SOURCES += main.cpp \
            relaisserver.cpp \
            relaiswebserver.cpp
 
+OTHER_FILES += .dockerignore \
+               Dockerfile
+
 include(QtWebserver/QtWebserver.pri)
