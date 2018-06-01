@@ -15,6 +15,8 @@ class RelaisServer : public QObject
 {
     Q_OBJECT
 
+    friend class RelaisClient;
+
 public:
     explicit RelaisServer(QObject *parent = Q_NULLPTR);
 

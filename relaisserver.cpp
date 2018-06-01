@@ -105,9 +105,5 @@ void RelaisServer::newConnection()
     if(!connection)
         return;
 
-    auto client = new RelaisClient(connection, this);
-    m_clients.insert(client);
-    connect(client, &QObject::destroyed, this, [=](){
-        m_clients.remove(client);
-    });
+    new RelaisClient(connection, this);
 }

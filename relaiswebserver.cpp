@@ -33,6 +33,12 @@ void RelaisWebserver::handleRequest(HttpClientConnection *connection, const Http
     {
         handleRoot(connection, request);
     }
+    else if(request.path == QStringLiteral("/refresh"))
+    {
+        for(auto client : m_relaisServer->clients())
+            client->requestStatus();
+        redirectRoot(connection, request);
+    }
     else if(request.path.startsWith("/devices/"))
     {
         auto parts = request.path.split('/');
@@ -42,57 +48,41 @@ void RelaisWebserver::handleRequest(HttpClientConnection *connection, const Http
             return;
         }
 
-        RelaisClient *client = Q_NULLPTR;
+        RelaisClient *client;
 
-        for(auto _client : m_relaisServer->clients())
         {
-            if(clientId(_client) == parts.at(2))
+            auto iter = std::find_if(m_relaisServer->clients().constBegin(), m_relaisServer->clients().constEnd(),
+                                     [&parts](const RelaisClient *client){
+                                         return clientId(client) == parts.at(2);
+                                     });
+
+            if(iter == m_relaisServer->clients().constEnd())
             {
-                client = _client;
-                break;
+                handle404(connection, request);
+                return;
             }
+
+            client = *iter;
         }
 
-        if(!client)
-        {
-            handle404(connection, request);
-            return;
-        }
+        static const QHash<QString, std::function<void(RelaisClient*)> > actions {
+            { QStringLiteral("toggle"),  [](RelaisClient *client){ client->toggle();        } },
+            { QStringLiteral("on"),      [](RelaisClient *client){ client->on();            } },
+            { QStringLiteral("off"),     [](RelaisClient *client){ client->off();           } },
+            { QStringLiteral("refresh"), [](RelaisClient *client){ client->requestStatus(); } },
+            { QStringLiteral("reboot"),  [](RelaisClient *client){ client->reboot();        } },
+            { QStringLiteral("delete"),  [](RelaisClient *client){ client->deleteLater();   } }
+        };
 
-        if(parts.at(3) == "on")
         {
-            client->on();
-            redirectRoot(connection, request);
-            return;
-        }
-        else if(parts.at(3) == "off")
-        {
-            client->off();
-            redirectRoot(connection, request);
-            return;
-        }
-        else if(parts.at(3) == "toggle")
-        {
-            client->toggle();
-            redirectRoot(connection, request);
-            return;
-        }
-        else if(parts.at(3) == "delete")
-        {
-            client->deleteLater();
-            redirectRoot(connection, request);
-            return;
-        }
-        else if(parts.at(3) == "reboot")
-        {
-            client->reboot();
-            redirectRoot(connection, request);
-            return;
-        }
-        else
-        {
-            handle404(connection, request);
-            return;
+            auto iter = actions.find(parts.at(3));
+            if(iter == actions.constEnd())
+                handle404(connection, request);
+            else
+            {
+                (*iter)(client);
+                redirectRoot(connection, request);
+            }
         }
     }
     else
@@ -103,7 +93,9 @@ void RelaisWebserver::handleRequest(HttpClientConnection *connection, const Http
 
 void RelaisWebserver::handleRoot(HttpClientConnection *connection, const HttpRequest &request)
 {
-    QString output = "<p>" % tr("%0 clients").arg(m_relaisServer->clients().count()) % "</p>";
+    QString output = "<h1>Lampen-Steuerung</h1>";
+
+    output.append("<a href=\"/refresh\">Alle aktualisieren</a>");
 
     output.append("<table border=\"1\">");
     output.append("<thead>");
@@ -112,29 +104,27 @@ void RelaisWebserver::handleRoot(HttpClientConnection *connection, const HttpReq
     output.append("<th>Name</th>");
     output.append("<th>Status</th>");
     output.append("<th>Actions</th>");
-    output.append("<th>Administration</th>");
     output.append("</tr>");
     output.append("</thead>");
     output.append("<tbody>");
+
     for(auto client : m_relaisServer->clients())
     {
         output.append("<tr>");
-        output.append("<td>" % clientId(client).toHtmlEscaped() % "</td>");
+        output.append("<td>" % clientId(client, true).toHtmlEscaped() % "</td>");
         output.append("<td>" % client->name().toHtmlEscaped() % "</td>");
         output.append("<td>" % client->status().toHtmlEscaped() % "</td>");
-        output.append("<td><a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/toggle\">" % tr("toggle") % "</a> ");
-
-        if(client->status() != QStringLiteral("on"))
-            output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/on\">" % tr("on") % "</a> ");
-
-        if(client->status() != QStringLiteral("off"))
-            output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/off\">" % tr("off") % "</a> ");
-
-        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/reboot\">" % tr("reboot") % "</a> ");
+        output.append("<td>");
+        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/toggle\">" % tr("Toggle") % "</a> ");
+        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/on\">" % tr("On") % "</a> ");
+        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/off\">" % tr("Off") % "</a> ");
+        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/refresh\">" % tr("Refresh") % "</a> ");
+        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/reboot\">" % tr("Reboot") % "</a> ");
+        output.append("<a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/delete\">" % tr("Delete") % "</a> ");
         output.append("</td>");
-        output.append("<td><a href=\"/devices/" % clientId(client).toHtmlEscaped() % "/delete\">" % tr("Delete") % "</a></td>");
         output.append("</tr>");
     }
+
     output.append("</tbody>");
     output.append("</table>");
 
@@ -171,7 +161,9 @@ void RelaisWebserver::handle404(HttpClientConnection *connection, const HttpRequ
     connection->sendResponse(response, tr("Not Found"));
 }
 
-QString RelaisWebserver::clientId(RelaisClient *client)
+QString RelaisWebserver::clientId(const RelaisClient *client, bool forceIp)
 {
+    if(!client->name().isEmpty() && !forceIp)
+        return client->name();
     return client->peerAddress().toString() % ':' % QString::number(client->peerPort());
 }

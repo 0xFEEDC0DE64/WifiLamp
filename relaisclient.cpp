@@ -8,11 +8,19 @@ RelaisClient::RelaisClient(QTcpSocket *socket, RelaisServer *server) :
     QObject(server),
     m_socket(socket),
     m_server(server),
-    m_state(Name)
+    m_waitingForName(true)
 {
     m_socket->setParent(this);
+
     connect(m_socket, &QIODevice::readyRead, this, &RelaisClient::readyRead);
     connect(m_socket, &QAbstractSocket::disconnected, this, &QObject::deleteLater);
+
+    m_server->m_clients.insert(this);
+}
+
+RelaisClient::~RelaisClient()
+{
+    m_server->m_clients.remove(this);
 }
 
 quint16 RelaisClient::localPort() const
@@ -90,10 +98,19 @@ void RelaisClient::readyRead()
         QString line(m_buffer.left(index));
         m_buffer.remove(0, index + 2);
 
-        switch(m_state)
+        if(m_waitingForName)
         {
-        case Name: m_name = line; m_state = Status; break;
-        case Status: m_status = line; break;
+            auto iter = std::find_if(m_server->m_clients.constBegin(), m_server->m_clients.constEnd(),
+                                     [&line](RelaisClient *client) {
+                                         return client->name() == line;
+                                     });
+            if(iter != m_server->m_clients.constEnd())
+                delete *iter;
+
+            m_name = line;
+            m_waitingForName = false;
         }
+        else
+            m_status = line;
     }
 }

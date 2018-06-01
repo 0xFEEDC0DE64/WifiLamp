@@ -13,6 +13,7 @@ class RelaisClient : public QObject
 
 public:
     explicit RelaisClient(QTcpSocket *socket, RelaisServer *server);
+    virtual ~RelaisClient();
 
     quint16 localPort() const;
     QHostAddress localAddress() const;
@@ -37,7 +38,7 @@ private:
     QTcpSocket *m_socket;
     RelaisServer *m_server;
     QByteArray m_buffer;
-    enum { Name, Status } m_state;
+    bool m_waitingForName;
 
     QString m_name;
     QString m_status;

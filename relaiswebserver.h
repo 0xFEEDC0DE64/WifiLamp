@@ -23,7 +23,7 @@ private:
     void handleRoot(HttpClientConnection *connection, const HttpRequest &request);
     void redirectRoot(HttpClientConnection *connection, const HttpRequest &request);
     void handle404(HttpClientConnection *connection, const HttpRequest &request);
-    static QString clientId(RelaisClient *client);
+    static QString clientId(const RelaisClient *client, bool forceIp = false);
 
     RelaisServer *m_relaisServer;
 };
